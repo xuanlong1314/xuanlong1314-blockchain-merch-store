@@ -3,37 +3,39 @@
 import { useState } from "react";
 import { useWallet } from "@solana/wallet-adapter-react";
 import * as web3 from "@solana/web3.js";
-import { products } from "../lib/products";
-import { ProductCard } from "@/components/ProductCard";
+import { products } from "../../../lib/products";
 import { PurchaseModal } from "@/components/PurchaseModal";
 import { transferToken } from "@/lib/transfer-token";
 import { useToast } from "@/hooks/use-toast";
 import { ToastAction } from "@/components/ui/toast";
 import Link from "next/link";
 
-export default function Home() {
-  const [selectedProduct, setSelectedProduct] = useState<
-    (typeof products)[0] | null
-  >(null);
+export default function ProductPage({ params }: { params: { id: string } }) {
+  const [isModalOpen, setIsModalOpen] = useState(false);
   const { toast } = useToast();
   const { publicKey, sendTransaction } = useWallet();
+  const product = products.find((p) => p.id === params.id);
 
-  const handlePurchase = async (product: (typeof products)[0]) => {
+  if (!product) {
+    return <div>Product not found</div>;
+  }
+
+  const handlePurchase = async () => {
     if (!publicKey) {
       alert("Please connect your wallet to make a purchase.");
       return;
     }
 
-    setSelectedProduct(product);
+    setIsModalOpen(true);
   };
 
   const handleConfirmPurchase = async () => {
-    if (!publicKey || !selectedProduct) return;
+    if (!publicKey) return;
 
     try {
       const explorerLink = await transferToken({
         publicKey,
-        amount: selectedProduct.price,
+        amount: product.price,
         sendTransaction,
       });
 
@@ -47,7 +49,7 @@ export default function Home() {
           </ToastAction>
         ),
       });
-      setSelectedProduct(null);
+      setIsModalOpen(false);
     } catch (error) {
       console.error("Error processing transaction:", error);
       alert(
@@ -57,22 +59,28 @@ export default function Home() {
   };
 
   return (
-    <div>
-      <h2 className="text-2xl font-bold mb-4">Featured Products</h2>
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        {products.map((product) => (
-          <ProductCard
-            key={product.id}
-            product={product}
-            onPurchase={handlePurchase}
-          />
-        ))}
+    <div className="flex flex-col md:flex-row gap-8">
+      <img
+        src={product.image}
+        alt={product.name}
+        className="w-full md:w-1/2 object-cover rounded-lg shadow-md"
+      />
+      <div>
+        <h2 className="text-2xl font-bold mb-2">{product.name}</h2>
+        <p className="text-gray-600 mb-4">{product.description}</p>
+        <p className="text-xl font-semibold mb-4">{product.price} SOL</p>
+        <button
+          onClick={handlePurchase}
+          className="bg-purple-600 text-white px-6 py-3 rounded-lg hover:bg-purple-700 transition-colors"
+        >
+          Purchase Now
+        </button>
       </div>
-      {selectedProduct && (
+      {isModalOpen && (
         <PurchaseModal
-          product={selectedProduct}
+          product={product}
           onConfirm={handleConfirmPurchase}
-          onCancel={() => setSelectedProduct(null)}
+          onCancel={() => setIsModalOpen(false)}
         />
       )}
     </div>
